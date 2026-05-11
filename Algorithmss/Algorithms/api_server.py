@@ -957,7 +957,7 @@ if __name__ == '__main__':
     print("=" * 60)
     print("  Cairo Transportation System API Server")
     print("=" * 60)
-    print("  Starting server on http://localhost:5000")
+    print("  Starting server on http://localhost:5001")
     print("  Available endpoints:")
     print("    GET  /api/health                    - Health check")
     print("    GET  /api/nodes                     - Get all nodes")
@@ -972,4 +972,6 @@ if __name__ == '__main__':
     print("    POST /api/transit/road-maintenance  - DP road maintenance")
     print("    GET  /api/transit/analysis          - Transit system analysis")
     print("=" * 60)
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    # Port 5001 avoids conflicts with other local apps commonly bound to 5000.
+    # use_reloader=False: on Windows the debug reloader can leave two listeners on the same port.
+    app.run(debug=True, port=5001, host='0.0.0.0', use_reloader=False)

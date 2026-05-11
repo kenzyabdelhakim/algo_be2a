@@ -225,170 +225,36 @@ export function Emergency() {
       <div className="w-96">
         <GlassCard className="h-full p-6">
           <h3 className="mb-4">Emergency Route</h3>
-          <div className="h-[calc(100%-3rem)] bg-gradient-to-br from-red-500/10 to-orange-500/10 rounded-xl border border-red-400/20 overflow-hidden">
-            {emergencyData && emergencyData.path.length > 0 ? (
-              <EmergencyMap 
-                path={emergencyData.path} 
+          <div className="h-[calc(100%-3rem)] min-h-[280px] overflow-hidden rounded-xl border border-red-400/20 bg-gradient-to-br from-red-500/10 to-orange-500/10">
+            <div className="relative h-full w-full min-h-[280px]">
+              <RouteMap
+                path={emergencyData?.path ?? []}
                 hospitals={hospitals}
-                selectedHospital={emergencyData.nearestHospital}
+                selectedHospitalId={emergencyData?.nearestHospital.id}
+                routeColor="#ef4444"
+                intermediatePointColor="#fbbf24"
+                className="h-full w-full min-h-[280px]"
               />
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-red-400" />
-                  <p className="text-gray-400">Emergency route visualization</p>
-                  {loadingHospitals && (
-                    <p className="text-sm text-blue-400 mt-2">Loading hospitals...</p>
-                  )}
+              {!emergencyData && hospitals.length === 0 && !loadingHospitals && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="rounded-xl bg-black/40 px-4 py-3 text-center backdrop-blur-sm">
+                    <AlertTriangle className="mx-auto mb-2 h-10 w-10 text-red-400 opacity-90" />
+                    <p className="text-sm text-gray-200">Mapbox · Cairo area</p>
+                    <p className="text-xs text-gray-400">Select a location and activate to plot hospitals</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+              {loadingHospitals && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <p className="rounded-lg bg-black/50 px-3 py-2 text-sm text-blue-300 backdrop-blur-sm">
+                    Loading hospitals…
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </GlassCard>
       </div>
     </div>
   );
 }
-
-// Emergency Map Component with hospital markers
-function EmergencyMap({ 
-  path, 
-  hospitals, 
-  selectedHospital 
-}: { 
-  path: any[]; 
-  hospitals: Hospital[];
-  selectedHospital: { id: string; name: string; lat?: number; lon?: number };
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<import('leaflet').Map | null>(null);
-
-  const validSteps = path.filter(
-    (s): s is any & { lat: number; lon: number } =>
-      typeof s.lat === 'number' && typeof s.lon === 'number'
-  );
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    import('leaflet').then((L) => {
-      // Fix default icon asset paths
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      });
-
-      if (!mapRef.current && containerRef.current) {
-        const initialCenter: [number, number] =
-          validSteps.length > 0
-            ? [validSteps[0].lat, validSteps[0].lon]
-            : [30.0444, 31.2357];
-
-        mapRef.current = L.map(containerRef.current, {
-          center: initialCenter,
-          zoom: 12,
-          zoomControl: true,
-          attributionControl: false,
-        });
-
-        L.tileLayer(
-          'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-          { subdomains: 'abcd', maxZoom: 19 }
-        ).addTo(mapRef.current);
-      }
-
-      const map = mapRef.current!;
-
-      // Remove previous layers
-      map.eachLayer((layer) => {
-        if (!(layer instanceof L.TileLayer)) map.removeLayer(layer);
-      });
-
-      if (validSteps.length < 1) return;
-
-      // Draw all hospitals as markers
-      hospitals.forEach((hospital) => {
-        const isSelected = hospital.id === selectedHospital.id;
-        
-        L.circleMarker([hospital.lat, hospital.lon], {
-          radius: isSelected ? 10 : 7,
-          fillColor: isSelected ? '#ef4444' : '#f87171',
-          color: '#fff',
-          weight: isSelected ? 3 : 2,
-          fillOpacity: isSelected ? 1 : 0.6,
-        })
-          .bindTooltip(
-            `${hospital.name}${isSelected ? ' (Selected)' : ''}<br/>${hospital.distance?.toFixed(2)} km away`,
-            { permanent: false, direction: 'top' }
-          )
-          .addTo(map);
-      });
-
-      // Draw route polyline
-      if (validSteps.length >= 2) {
-        const latLngs: [number, number][] = validSteps.map((s) => [s.lat, s.lon]);
-
-        L.polyline(latLngs, {
-          color: '#ef4444',
-          weight: 4,
-          opacity: 0.9,
-        }).addTo(map);
-
-        // Source marker (green)
-        const sourceStep = validSteps[0];
-        L.circleMarker([sourceStep.lat, sourceStep.lon], {
-          radius: 9,
-          fillColor: '#4ade80',
-          color: '#fff',
-          weight: 2,
-          fillOpacity: 1,
-        })
-          .bindTooltip(sourceStep.nodeName, { permanent: false, direction: 'top' })
-          .addTo(map);
-
-        // Intermediate waypoints
-        validSteps.slice(1, -1).forEach((step) => {
-          L.circleMarker([step.lat, step.lon], {
-            radius: 5,
-            fillColor: '#fbbf24',
-            color: '#fff',
-            weight: 1.5,
-            fillOpacity: 0.85,
-          })
-            .bindTooltip(step.nodeName, { permanent: false, direction: 'top' })
-            .addTo(map);
-        });
-
-        // Fit map to show all markers
-        const allPoints: [number, number][] = [
-          ...latLngs,
-          ...hospitals.map(h => [h.lat, h.lon] as [number, number])
-        ];
-        map.fitBounds(L.latLngBounds(allPoints), { padding: [24, 24] });
-      }
-    });
-  }, [path, hospitals, selectedHospital, validSteps]);
-
-  useEffect(() => {
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
-  }, []);
-
-  return (
-    <div
-      ref={containerRef}
-      className="w-full h-full"
-      style={{ background: '#1a1a2e' }}
-    />
-  );
-}
-
-// Add missing import
-import { useRef } from 'react';

@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GlassCard } from './GlassCard';
 import { Activity, Clock, Route, TrendingUp } from 'lucide-react';
 import { fetchDashboardStats } from '../../services/api';
+import {
+  TrafficHeatMap,
+  type TrafficHeatMapHandle,
+} from './TrafficHeatMap';
 
 export function Dashboard() {
+  const heatMapRef = useRef<TrafficHeatMapHandle>(null);
+  const [heatmapOn, setHeatmapOn] = useState(true);
   const [stats, setStats] = useState<
     Array<{
       label: string;
@@ -58,24 +64,36 @@ export function Dashboard() {
       <div className="flex-1 flex flex-col gap-6">
         <GlassCard className="flex-1 p-6 flex items-center justify-center">
           <div className="text-center">
-            <div className="w-full h-96 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-xl border border-white/10 flex items-center justify-center mb-4">
-              <div className="text-gray-400">
-                <svg className="w-32 h-32 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                </svg>
-                <p className="text-lg">Interactive Map View</p>
-                <p className="text-sm mt-2">Real-time traffic visualization</p>
-              </div>
+            <div className="mb-4 h-96 w-full overflow-hidden rounded-xl border border-white/10">
+              <TrafficHeatMap ref={heatMapRef} className="h-full w-full min-h-[24rem]" />
             </div>
-            <div className="flex gap-2 justify-center">
-              <button className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 rounded-lg transition-all">
+            <p className="mb-3 text-sm text-gray-500">
+              Traffic density heatmap (Mapbox) · Cairo area · demo points — swap GeoJSON for your API data.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button
+                type="button"
+                className="rounded-lg border border-blue-400/30 bg-blue-500/20 px-4 py-2 transition-all hover:bg-blue-500/30"
+                onClick={() => heatMapRef.current?.zoomIn()}
+              >
                 Zoom In
               </button>
-              <button className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 rounded-lg transition-all">
+              <button
+                type="button"
+                className="rounded-lg border border-blue-400/30 bg-blue-500/20 px-4 py-2 transition-all hover:bg-blue-500/30"
+                onClick={() => heatMapRef.current?.zoomOut()}
+              >
                 Zoom Out
               </button>
-              <button className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 rounded-lg transition-all">
-                Layers
+              <button
+                type="button"
+                className="rounded-lg border border-blue-400/30 bg-blue-500/20 px-4 py-2 transition-all hover:bg-blue-500/30"
+                onClick={() => {
+                  const visible = heatMapRef.current?.toggleHeatmapVisibility();
+                  if (typeof visible === 'boolean') setHeatmapOn(visible);
+                }}
+              >
+                Heatmap: {heatmapOn ? 'On' : 'Off'}
               </button>
             </div>
           </div>

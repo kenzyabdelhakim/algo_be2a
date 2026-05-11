@@ -16,9 +16,9 @@ function getApiBaseUrl(): string {
     return '/api';
   }
   if (typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:5000/api`;
+    return `${window.location.protocol}//${window.location.hostname}:5001/api`;
   }
-  return 'http://localhost:5000/api';
+  return 'http://localhost:5001/api';
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

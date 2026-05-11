@@ -14,13 +14,36 @@ export function RoutePlanner() {
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
   const [nodes, setNodes] = useState<Node[]>([]);
+  const [nodesLoading, setNodesLoading] = useState(true);
+  const [nodesError, setNodesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [routeData, setRouteData] = useState<DijkstraResponse | null>(null);
   const [compareHint, setCompareHint] = useState<string | null>(null);
 
+  const loadNodes = () => {
+    setNodesLoading(true);
+    setNodesError(null);
+    fetchNodes()
+      .then((list) => {
+        setNodes(list);
+        if (list.length === 0) {
+          setNodesError('No nodes returned from the API. Check that the backend graph is loaded.');
+        }
+      })
+      .catch((err) => {
+        setNodes([]);
+        setNodesError(
+          err instanceof Error
+            ? err.message
+            : 'Could not load nodes. Start the Cairo API (Python) on port 5001 — run python api_server.py from Algorithmss/Algorithms, then click Retry.'
+        );
+      })
+      .finally(() => setNodesLoading(false));
+  };
+
   useEffect(() => {
-    fetchNodes().then(setNodes).catch(console.error);
+    loadNodes();
   }, []);
 
   const handleFindRoute = async () => {
@@ -74,12 +97,31 @@ export function RoutePlanner() {
           <h2 className="text-2xl mb-6">Route Planning</h2>
 
           <div className="space-y-4 mb-6">
+            {nodesLoading && (
+              <p className="text-sm text-blue-300">Loading map nodes from the API…</p>
+            )}
+            {nodesError && (
+              <div className="flex flex-col gap-2 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+                <p>{nodesError}</p>
+                <button
+                  type="button"
+                  onClick={loadNodes}
+                  className="self-start rounded-lg border border-amber-400/40 bg-amber-500/20 px-3 py-1.5 text-amber-50 hover:bg-amber-500/30"
+                >
+                  Retry loading nodes
+                </button>
+              </div>
+            )}
+            {!nodesLoading && !nodesError && nodes.length > 0 && (
+              <p className="text-xs text-gray-500">{nodes.length} locations available — pick source and destination.</p>
+            )}
             <div>
               <label className="block text-sm text-gray-400 mb-2">Source</label>
               <select
                 value={source}
+                disabled={nodesLoading || nodes.length === 0}
                 onChange={(e) => setSource(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-blue-400/50 transition-all"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-blue-400/50 transition-all disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">Select starting point</option>
                 {nodes.map((node) => (
@@ -94,8 +136,9 @@ export function RoutePlanner() {
               <label className="block text-sm text-gray-400 mb-2">Destination</label>
               <select
                 value={destination}
+                disabled={nodesLoading || nodes.length === 0}
                 onChange={(e) => setDestination(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-blue-400/50 transition-all"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-blue-400/50 transition-all disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">Select destination</option>
                 {nodes.map((node) => (
@@ -191,17 +234,19 @@ export function RoutePlanner() {
       <div className="w-96">
         <GlassCard className="h-full p-6">
           <h3 className="mb-4">Map Preview</h3>
-          <div className="h-[calc(100%-3rem)] rounded-xl border border-white/10 overflow-hidden">
-            {routeData && routeData.path.some((s) => s.lat && s.lon) ? (
-              <RouteMap
-                path={routeData.path}
-                className="w-full h-full"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                <p className="text-gray-400">Route visualization</p>
-              </div>
-            )}
+          <div className="h-[calc(100%-3rem)] min-h-[280px] rounded-xl border border-white/10 overflow-hidden">
+            <div className="relative h-full w-full min-h-[280px]">
+              <RouteMap path={routeData?.path ?? []} className="h-full w-full min-h-[280px]" />
+              {!routeData && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="rounded-xl bg-black/40 px-4 py-3 text-center backdrop-blur-sm">
+                    <Navigation className="mx-auto mb-2 h-10 w-10 text-blue-400 opacity-90" />
+                    <p className="text-sm text-gray-200">Mapbox · Cairo area</p>
+                    <p className="text-xs text-gray-400">Choose source & destination, then find route</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </GlassCard>
       </div>
